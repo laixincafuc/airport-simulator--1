@@ -12,21 +12,32 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
       
     - name: Build Docker image
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
-        tags: airport-simulator:latest
+        tags: |
+          airport-simulator:latest
+          airport-simulator:${{ github.sha }}
         outputs: type=docker,dest=/tmp/airport-simulator.tar
         
-    - name: Upload Docker image
-      uses: actions/upload-artifact@v3
+    - name: Test Docker image
+      run: |
+        docker load -i /tmp/airport-simulator.tar
+        docker run -d --name test-container -p 5000:5000 airport-simulator:latest
+        sleep 15
+        curl -f http://localhost:5000/health || exit 1
+        docker stop test-container
+        docker rm test-container
+        
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
       with:
         name: airport-simulator-docker-image
         path: /tmp/airport-simulator.tar
